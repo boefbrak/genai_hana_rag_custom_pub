@@ -1,0 +1,18 @@
+{
+  "// INSTRUCTIONS": "Edit values below, then run: ./setup-deployment.sh --deploy",
+
+  "USERNAME": "",
+  "REGION": "",
+  "DATABASE_ID": "",
+  "AICORE_SERVICE_NAME": "",
+
+  "// NAMING_CONVENTION": {
+    "CF_APP_SERVICE": "{USERNAME}-genai-hana-rag-srv",
+    "CF_APP_WEBAPP": "{USERNAME}-genai-hana-rag-app",
+    "CF_APP_DEPLOYER": "{USERNAME}-genai-hana-rag-db-deployer",
+    "HDI_CONTAINER": "{USERNAME}-hana-hdi-rag",
+    "AI_CORE": "",
+    "SERVICE_URL": "https://{USERNAME}-genai-hana-rag-srv.cfapps.{REGION}.hana.ondemand.com",
+    "APP_URL": "https://{USERNAME}-genai-hana-rag-app.cfapps.{REGION}.hana.ondemand.com"
+  }
+}

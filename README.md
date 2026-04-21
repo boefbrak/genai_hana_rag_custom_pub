@@ -1,1 +1,0 @@
-# genai_hana_rag_custom_pub
