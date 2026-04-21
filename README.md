@@ -3,7 +3,7 @@
 ### Database Layer (db/)
 | File | Description |
 |------|-------------|
-| `schema.cds` | CDS data model defining four entities: `Documents` (uploaded files metadata), `DocumentChunks` (text chunks with Vector(3072) embeddings), `ChatSessions` (conversation sessions), `ChatMessages` (individual messages with sources) |
+| **schema.cds** | CDS data model defining four entities: `Documents` (uploaded files metadata), `DocumentChunks` (text chunks with Vector(3072) embeddings), `ChatSessions` (conversation sessions), `ChatMessages` (individual messages with sources) |
 
 
 #### CDS data model defining four entities
@@ -52,7 +52,7 @@ entity ChatMessages : cuid {
 
 | File | Description |
 |------|-------------|
-| **`document-service.cds`** | OData service definition exposing Documents entity and actions: `upload`, `getStatus`, `deleteDocument`, `getDeletePreview` |
+| **document-service.cds** | OData service definition exposing Documents entity and actions: `upload`, `getStatus`, `deleteDocument`, `getDeletePreview` |
 | `document-service.js` | Handler implementing document CRUD, cascade delete (chunks → sessions → messages), and delete preview |
 | `chat-service.cds` | OData service definition exposing ChatSessions/ChatMessages and actions: `createSession`, `updateSession`, `sendMessage`, `getSessionMessages`, `getDocumentSessions` |
 | `chat-service.js` | Handler implementing document-scoped chat with RAG pipeline integration |
