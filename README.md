@@ -117,3 +117,96 @@ service ChatService @(path: '/api/chat') {
 }
 ```
 
+
+### Library Files (`srv/lib/`)
+
+| File | Description |
+|------|-------------|
+| `file-parser.js` | Extracts text from uploaded files: `pdf-parse` for PDFs, direct buffer conversion for TXT, `csv-parse` for CSV (converts to "Column: Value" format) |
+| `chunker.js` | Splits text into chunks of ~1000 tokens with ~200 token overlap, breaking at sentence boundaries for better context preservation |
+| `embedder.js` | Wraps SAP AI SDK's `AzureOpenAiEmbeddingClient` for `text-embedding-3-large` model, processes in batches of 20 texts |
+| `vector-search.js` | Executes HANA SQL with `COSINE_SIMILARITY()` function to find top-K similar chunks to a query embedding |
+| **rag-engine.js** | Wraps SAP AI SDK's `AzureOpenAiChatClient` for `gpt-4o`, constructs RAG prompts with document context and chat history |
+| `upload-processor.js` | Orchestrates async document processing: parse → chunk → embed → store with vector, updates document status |
+
+
+####  Wrap SAP AI SDK's `AzureOpenAiChatClient` for `gpt-4o`, constructs RAG prompts with document context and chat history
+
+`srv/lib/rag-engine.js`
+
+```js
+const { AzureOpenAiChatClient } = require('@sap-ai-sdk/foundation-models');
+
+let chatClient = null;
+
+function getChatClient() {
+  if (!chatClient) {
+    chatClient = new AzureOpenAiChatClient('gpt-4o');
+  }
+  return chatClient;
+}
+
+const SYSTEM_PROMPT = `You are a helpful AI assistant that answers questions based on the provided document context.
+
+Rules:
+1. Answer ONLY based on the provided context. If the context doesn't contain enough information, say so clearly.
+2. Cite which document(s) your answer is based on when possible.
+3. Be concise but thorough.
+4. If the user's question is a greeting or general conversation, respond naturally.
+5. Maintain a professional and helpful tone.`;
+
+async function generateRAGResponse({ query, chunks, history }) {
+  const client = getChatClient();
+
+  const contextParts = chunks.map((chunk, idx) => {
+    const similarity = (chunk.similarity * 100).toFixed(1);
+    // Handle NCLOB content - may be Buffer or string
+    let contentStr = chunk.content;
+    if (Buffer.isBuffer(contentStr)) {
+      contentStr = contentStr.toString('utf8');
+    } else if (typeof contentStr !== 'string') {
+      contentStr = String(contentStr || '');
+    }
+    return `[Source ${idx + 1}: "${chunk.documentName}", relevance: ${similarity}%]\n${contentStr}`;
+  });
+
+  const contextBlock = contextParts.length > 0
+    ? `\n\n--- DOCUMENT CONTEXT ---\n${contextParts.join('\n\n---\n\n')}\n--- END CONTEXT ---\n\n`
+    : '\n\n[No relevant documents found in the knowledge base.]\n\n';
+
+  const messages = [];
+
+  messages.push({
+    role: 'system',
+    content: SYSTEM_PROMPT + contextBlock
+  });
+
+  // Add chat history (excluding the current user message which is last)
+  const historyWithoutCurrent = history.slice(0, -1);
+  for (const msg of historyWithoutCurrent) {
+    if (msg.role === 'user' || msg.role === 'assistant') {
+      // Handle NCLOB content - may be Buffer or string
+      let msgContent = msg.content;
+      if (Buffer.isBuffer(msgContent)) {
+        msgContent = msgContent.toString('utf8');
+      } else if (typeof msgContent !== 'string') {
+        msgContent = String(msgContent || '');
+      }
+      messages.push({ role: msg.role, content: msgContent });
+    }
+  }
+
+  messages.push({ role: 'user', content: query });
+
+  const response = await client.run({
+    messages,
+    max_tokens: 2000,
+    temperature: 0.3
+  });
+
+  return response.getContent();
+}
+
+module.exports = { generateRAGResponse };
+
+```
